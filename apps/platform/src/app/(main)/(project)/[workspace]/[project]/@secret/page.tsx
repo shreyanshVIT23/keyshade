@@ -11,7 +11,9 @@ import {
   deleteEnvironmentValueOfSecretOpenAtom,
   deleteSecretOpenAtom,
   editSecretOpenAtom,
+  rollbackSecretOpenAtom,
   secretRevisionsOpenAtom,
+  shouldRevealSecretEnabled,
   secretsOfProjectAtom,
   selectedProjectAtom,
   selectedSecretAtom
@@ -24,6 +26,7 @@ import { SECRET_PAGE_SIZE } from '@/lib/constants'
 import EmptySecretListContent from '@/components/dashboard/secret/emptySecretListSection'
 import ConfirmDeleteEnvironmentValueOfSecretDialog from '@/components/dashboard/secret/confirmDeleteEnvironmentValueOfSecret'
 import SecretRevisionsSheet from '@/components/dashboard/secret/secretRevisionSheet'
+import ConfirmRollbackSecret from '@/components/dashboard/secret/confirmRollbackSecret'
 
 extend(relativeTime)
 
@@ -34,19 +37,23 @@ function SecretPage(): React.JSX.Element {
     deleteEnvironmentValueOfSecretOpenAtom
   )
   const isSecretRevisionsOpen = useAtomValue(secretRevisionsOpenAtom)
+  const isRollbackSecretOpen = useAtomValue(rollbackSecretOpenAtom)
   const selectedSecret = useAtomValue(selectedSecretAtom)
   const [secrets, setSecrets] = useAtom(secretsOfProjectAtom)
   const selectedProject = useAtomValue(selectedProjectAtom)
+  const isDecrypted = useAtomValue(shouldRevealSecretEnabled)
 
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [isLoading, setIsLoading] = useState<boolean>(true)
 
-  const isDecrypted = useMemo(
-    () => selectedProject?.storePrivateKey === true || false,
+  const privateKey = useMemo(
+    () =>
+      selectedProject?.storePrivateKey
+        ? selectedProject.privateKey
+        : localStorage.getItem(`${selectedProject?.name}_pk`) || null,
     [selectedProject]
   )
-
   const getAllSecretsOfProject = useHttp(() =>
     ControllerInstance.getInstance().secretController.getAllSecretsOfProject({
       projectSlug: selectedProject!.slug,
@@ -109,6 +116,7 @@ function SecretPage(): React.JSX.Element {
                 <SecretCard
                   isDecrypted={isDecrypted}
                   key={secretData.secret.id}
+                  privateKey={privateKey}
                   secretData={secretData}
                 />
               ))}
@@ -145,6 +153,11 @@ function SecretPage(): React.JSX.Element {
           {/* Secret revisions sheet */}
           {isSecretRevisionsOpen && selectedSecret ? (
             <SecretRevisionsSheet />
+          ) : null}
+
+          {/* Rollback secret alert dialog */}
+          {isRollbackSecretOpen && selectedSecret ? (
+            <ConfirmRollbackSecret />
           ) : null}
         </div>
       )}
